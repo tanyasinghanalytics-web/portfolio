@@ -173,6 +173,29 @@ button{font:inherit;cursor:pointer}
 .fact strong{font-weight:600}
 .custom-img{border-radius:var(--radius);width:100%;object-fit:cover}
 
+/* résumé */
+.cv{display:grid;grid-template-columns:1fr 340px;gap:36px;align-items:center;padding:32px;max-width:980px}
+.cv.no-prev{grid-template-columns:1fr}
+.cv-top{display:flex;gap:16px;align-items:center}
+.cv-top h3{font-size:22px;margin-bottom:4px}
+.cv-top small{font-size:14px}
+.cv-md{margin-top:20px;font-size:16px}
+.cv-md ul:last-child,.cv-md p:last-child{margin-bottom:0}
+.site .row.cv-btns{margin-top:24px}
+.cv-prev{position:relative;display:grid;place-items:center;width:100%;aspect-ratio:1/1.32;padding:0;border:1px solid var(--border);border-radius:calc(var(--radius) * .6);background:#fff;overflow:hidden;cursor:zoom-in;box-shadow:var(--shadow);transform:rotate(1.5deg);transition:transform .3s,box-shadow .3s}
+.cv-prev:hover{transform:rotate(0) translateY(-4px)}
+.cv-prev img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top}
+.cv-hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:inline-flex;gap:6px;align-items:center;white-space:nowrap;padding:7px 14px;border-radius:999px;background:#0f1424e6;color:#fff;font:600 13px var(--fb);opacity:0;transition:opacity .2s}
+.cv-prev:hover .cv-hint,.cv-prev:focus-visible .cv-hint{opacity:1}
+.cv-spin{width:34px;height:34px;border-radius:50%;border:3px solid #0000001a;border-top-color:var(--primary);animation:spin .8s linear infinite}
+.cv-prev.cv-fail{background:var(--soft);color:var(--muted);cursor:pointer;padding:20px;text-align:center;font-size:14px;display:flex;flex-direction:column;justify-content:center;gap:10px;align-items:center}
+.cv-prev.cv-fail .ic{width:34px;height:34px;color:var(--primary)}
+@container site (max-width: 760px){
+  .cv{grid-template-columns:1fr;padding:22px;gap:24px}
+  .cv-prev{max-width:320px;margin:0 auto;transform:none}
+  .cv-hint{opacity:1}
+}
+
 /* stats */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 .stat{padding:26px;text-align:center}
@@ -1064,6 +1087,7 @@ window.PS = (function () {
     services: { label: 'Services', icon: 'briefcase', make: () => ({ title: 'Services', eyebrow: 'How I can help', navShow: false, items: [{ title: 'Service', subtitle: '', date: '', url: '', body: '' }] }) },
     languages: { label: 'Languages', icon: 'globe', make: () => ({ title: 'Languages', eyebrow: 'I speak', navShow: false, items: [{ name: 'English', level: 'Professional working proficiency' }] }) },
     causes: { label: 'Causes & interests', icon: 'heart', make: () => ({ title: 'Causes & Interests', eyebrow: 'Beyond work', navShow: false, body: '', items: [{ name: 'Education' }] }) },
+    resume: { label: 'Résumé / CV', icon: 'file', make: () => ({ title: 'Résumé', eyebrow: 'My CV', subtitle: 'Read my résumé right here, or download a copy.', docTitle: '', updated: '', body: '', showPreview: true }) },
     custom: { label: 'Custom content', icon: 'layout', make: () => ({ title: 'New section', eyebrow: '', subtitle: '', body: 'Write anything here — **markdown** supported.', image: '', button: { label: '', url: '' } }) },
     contact: { label: 'Contact', icon: 'mail', make: () => ({ title: 'Contact', eyebrow: 'Get in touch', headline: "Let's *work together*", subtitle: '', showPhone: true, showCompany: true, successMsg: 'Thanks! I will be in touch soon.' }) }
   };
@@ -1539,6 +1563,24 @@ window.PS = (function () {
       return wrapSec(s, `${head(s)}${s.body ? `<div class="md reveal narrow">${md(s.body)}</div>` : ''}
         <div class="tags reveal" style="margin-top:18px">${(s.items || []).map(t => `<span class="tag lg">${esc(t.name)}</span>`).join('')}</div>`);
     },
+    resume(d, s, ctx) {
+      // Uses the résumé from the Profile tab, so the hero "Résumé" button and this section share one file
+      const p = d.profile, url = p.resume, name = p.resumeName || '';
+      if (!hasFile(url)) return ctx.admin ? wrapSec(s, `${head(s)}<div class="ph">${ic('file')}<span>Upload your résumé in this section's settings. A PDF works best: visitors can read it right here.</span></div>`) : '';
+      const m = fileMeta(name || url), a = `data-url="${esc(url)}" data-name="${esc(name)}"`;
+      const pdf = viewKind(name || url) === 'pdf' || (!extOf(name || url) && !!driveId(url));
+      const preview = pdf && s.showPreview !== false;
+      return wrapSec(s, `${head(s)}<div class="card cv reveal ${preview ? '' : 'no-prev'}">
+        <div class="cv-info">
+          <div class="cv-top"><div class="fic" style="--fc:${m.color}">${ic('file')}<b>${esc(m.ext.slice(0, 5))}</b></div>
+            <div><h3>${esc(s.docTitle || p.name + ' — Résumé')}</h3><small class="muted">${esc(joinParts([p.role, s.updated ? 'Updated ' + s.updated : '']))}</small></div></div>
+          ${s.body ? `<div class="md cv-md">${md(s.body)}</div>` : ''}
+          <div class="row cv-btns">${canView(name, url) ? `<button class="btn btn-primary" data-fview ${a}>${ic('eye')} Preview résumé</button>` : ''}
+            <button class="btn btn-ghost" data-fdl ${a}>${ic('download')} Download ${esc(m.ext === 'FILE' ? '' : m.ext)}</button></div>
+        </div>
+        ${preview ? `<button class="cv-prev" data-fview data-cv-preview ${a} aria-label="Read the résumé"><span class="cv-spin"></span></button>` : ''}
+      </div>`);
+    },
     custom(d, s) {
       const btn = s.button && s.button.label && safeUrl(s.button.url) ? `<a class="btn btn-primary" href="${esc(safeUrl(s.button.url))}" target="_blank" rel="noopener">${esc(s.button.label)} ${ic('arrow-right')}</a>` : '';
       return wrapSec(s, s.image ? `<div class="about-grid"><div>${head(s)}<div class="md reveal">${md(s.body)}</div>${btn}</div><img class="custom-img reveal" src="${esc(img(s.image))}" alt=""></div>`
@@ -1823,6 +1865,32 @@ window.PS = (function () {
 
   /* ---------------- on-site file viewer & download (visitors never leave for Google Drive) ---------------- */
   const fileCache = new Map();
+  const cvThumbs = new Map(); // résumé url -> { src, pages } of its first page
+
+  /** Shows the first page of the résumé PDF as a picture; clicking it opens the full viewer. */
+  async function cvPreview(el) {
+    const url = el.dataset.url, hint = n => `<span class="cv-hint">${ic('eye')} Click to read${n > 1 ? ' · ' + n + ' pages' : ''}</span>`;
+    try {
+      let t = cvThumbs.get(url);
+      if (!t) {
+        const f = await fetchFile(url, el.dataset.name);
+        await loadAsset(CDN + 'pdf.js/3.11.174/pdf.min.js');
+        const lib = window.pdfjsLib;
+        lib.GlobalWorkerOptions.workerSrc = CDN + 'pdf.js/3.11.174/pdf.worker.min.js';
+        const pdf = await lib.getDocument({ data: f.bytes.slice() }).promise, page = await pdf.getPage(1);
+        const vp = page.getViewport({ scale: 900 / page.getViewport({ scale: 1 }).width });
+        const c = document.createElement('canvas');
+        c.width = vp.width; c.height = vp.height;
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        t = { src: c.toDataURL('image/jpeg', 0.85), pages: pdf.numPages };
+        cvThumbs.set(url, t);
+      }
+      el.innerHTML = `<img src="${t.src}" alt="First page of the résumé">${hint(t.pages)}`;
+    } catch (ex) {
+      el.classList.add('cv-fail');
+      el.innerHTML = `${ic('file')}<span>Preview not available here. Use the buttons to read or download it.</span>`;
+    }
+  }
   const VIEW = {
     image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'],
     pdf: ['pdf'],
@@ -2011,6 +2079,15 @@ window.PS = (function () {
     if (codes.length) {
       const paint = () => codes.forEach(el => { if (el.isConnected) { try { Prism.highlightElement(el); } catch (e) {} } });
       if (window.Prism && Prism.languages && Prism.languages.python) paint(); else loadPrism().then(paint).catch(() => {});
+    }
+    // Résumé: draw its first page only when the section comes near the screen
+    const cvs = $$('[data-cv-preview]', root);
+    if (cvs.length) {
+      if (!('IntersectionObserver' in window)) cvs.forEach(cvPreview);
+      else {
+        const cio = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { cio.unobserve(en.target); cvPreview(en.target); } }), { rootMargin: '300px' });
+        cvs.forEach(el => cio.observe(el));
+      }
     }
     const site = $('.site', root);
     const hero = $('.sec-hero', root);
@@ -2780,6 +2857,13 @@ window.PS = (function () {
       skills: () => grp('Display', `${F.area('Subtitle', p + '.subtitle', 2)}<div class="f"><span class="fl">Style</span><div class="seg">${[['bars', 'Progress bars'], ['chips', 'Tags']].map(([v, l]) => `<button class="${(s.style || 'bars') === v ? 'on' : ''}" data-act="set" data-path="${p}.style" data-v="${v}">${l}</button>`).join('')}</div></div>`, 'layout') +
         grp('Skill groups', list(p + '.groups', 'Group', q => F.text('Group name', q + '.name') + F.media('Group icon (optional)', q + '.icon') + list(q + '.items', 'Skill', r => `<div class="f2">${F.text('Skill', r + '.name')}${F.num('Level %', r + '.level', 0, 100)}</div>${F.media('Logo (optional)', r + '.icon', 'image/\*', { hint: 'For example the Power BI or Python logo.' })}`, 'skill', it => it.name), 'group', it => it.name), 'zap'),
       testimonials: () => grp('Quotes', list(p + '.items', 'Testimonial', q => `${F.area('Quote', q + '.quote', 3)}${f2(F.text('Name', q + '.name'), F.text('Role', q + '.role'))}${F.media('Photo', q + '.photo')}`, 'quote', it => it.name), 'quote'),
+      resume: () => grp('Résumé file', `${F.media('Upload your résumé', 'profile.resume', '.pdf,.doc,.docx', { name: 'profile.resumeName', ph: 'Upload a PDF, or paste a Drive link', hint: 'PDF is best: visitors see the first page here and can read every page on your portfolio. Word files can be downloaded.' })}
+        ${S.data.profile.resumeName ? `<div class="hint" style="margin:0 0 12px">Current file: <b>${esc(S.data.profile.resumeName)}</b>. Upload again to replace it.</div>` : ''}
+        ${f2(F.text('Document title', p + '.docTitle', S.data.profile.name + ' — Résumé'), F.text('Last updated', p + '.updated', 'Nov 2026'))}
+        ${F.area('Subtitle', p + '.subtitle', 2)}
+        ${F.area('Highlights (optional)', p + '.body', 4, '- 3+ years in survey research & BI\n- Power BI, Excel, SQL, Python', 'Short points shown beside the preview. Markdown supported.')}
+        ${F.tog('Show a preview of the first page', p + '.showPreview')}
+        <div class="hint" style="margin:0">The same file is used by the <b>Résumé</b> button in your hero (Profile tab).</div>`, 'file'),
       custom: () => grp('Content', `${F.area('Subtitle', p + '.subtitle', 2)}${F.area('Body', p + '.body', 10, '', 'Markdown supported.')}${F.media('Side image', p + '.image')}${f2(F.text('Button label', p + '.button.label'), F.text('Button link', p + '.button.url'))}`, 'text'),
       featured: () => grp('Featured items', `<div class="hint">Like LinkedIn's Featured: link a post, article, certificate or website, or point a card at one of your projects.</div>` + list(p + '.items', 'Item', featFields, 'feat', it => it.title), 'star'),
       activity: () => grp('Posts', `<div class="hint">Paste the link of each LinkedIn post (… → Copy link to post) with a short excerpt.</div>` + list(p + '.items', 'Post', featFields, 'post', it => it.title), 'send'),
